@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { FileText } from "lucide-react";
+import { FileText, Eye, Download } from "lucide-react";
+import { RatingSummary } from "./Stars";
 import type { Resource } from "@/lib/resources";
 import { areaBySlug, formatYears, typeBySlug } from "@/lib/taxonomy";
 import { FavouriteButton } from "./FavouriteButton";
@@ -26,6 +27,10 @@ export function ResourceThumb({ resource, className = "" }: { resource: Resource
       <span className="text-xs font-medium text-muted">{typeBySlug(resource.resource_type)?.name}</span>
     </div>
   );
+}
+
+export function compact(n: number) {
+  return new Intl.NumberFormat("en-NZ", { notation: "compact", maximumFractionDigits: 1 }).format(n ?? 0);
 }
 
 export function ResourceCard({ resource, signedIn }: { resource: Resource; signedIn: boolean }) {
@@ -57,12 +62,17 @@ export function ResourceCard({ resource, signedIn }: { resource: Resource; signe
         <h3 className="line-clamp-2 font-display text-[17px] font-semibold leading-snug text-ink group-hover:text-fern">
           {resource.title}
         </h3>
-        <div className="mt-auto flex flex-wrap gap-1.5 pt-1">
+        <RatingSummary avg={resource.rating_avg} count={resource.rating_count} />
+        <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-1">
           <span className="rounded-md bg-fern-light px-2 py-0.5 text-[11px] font-semibold text-fern">
             {formatYears(resource.years)}
           </span>
           <span className="rounded-md bg-sand px-2 py-0.5 text-[11px] font-medium text-ink/70">
             {typeBySlug(resource.resource_type)?.name}
+          </span>
+          <span className="ml-auto flex items-center gap-2.5 text-[11px] text-muted">
+            <span className="flex items-center gap-1" title="Views"><Eye className="h-3 w-3" />{compact(resource.view_count)}</span>
+            <span className="flex items-center gap-1" title="Downloads"><Download className="h-3 w-3" />{compact(resource.download_count)}</span>
           </span>
         </div>
       </div>

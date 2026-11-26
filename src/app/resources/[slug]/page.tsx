@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { after } from "next/server";
-import { ChevronLeft, Download, FileText, Lock, Calendar, Layers } from "lucide-react";
+import { ChevronLeft, Download, FileText, Lock, Calendar, Layers, Eye } from "lucide-react";
+import { RatingInput } from "@/components/RatingInput";
 import { getCurrentUser } from "@/lib/session";
-import { getRelated, getResourceBySlug, incrementViews } from "@/lib/resources";
+import { getRelated, getResourceBySlug } from "@/lib/resources";
+import { ViewTracker } from "@/components/ViewTracker";
 import { areaBySlug, formatYears, typeBySlug, yearLabel } from "@/lib/taxonomy";
 import { PdfPreview } from "@/components/pdf/PdfPreview";
 import { FavouriteButton } from "@/components/FavouriteButton";
@@ -43,7 +44,6 @@ async function Detail({ params }: Props) {
   const user = await getCurrentUser();
   const resource = await getResourceBySlug(slug, user?.id ?? null);
   if (!resource) notFound();
-  after(() => incrementViews(resource.id));
 
   const related = await getRelated(resource, user?.id ?? null);
   const fileUrl = `/api/resources/${resource.id}/file`;
@@ -52,6 +52,7 @@ async function Detail({ params }: Props) {
 
   return (
     <>
+      <ViewTracker id={resource.id} />
       <title>{`${resource.title} · KiwiTeachers`}</title>
       <meta name="description" content={resource.description.slice(0, 160)} />
       <div className="mt-6 grid gap-10 lg:grid-cols-[1fr_380px]">
@@ -109,7 +110,18 @@ async function Detail({ params }: Props) {
             />
           </div>
 
-          <dl className="card mt-6 divide-y divide-line text-sm">
+          <div className="mt-6">
+            <RatingInput
+              resourceId={resource.id}
+              initialAvg={resource.rating_avg}
+              initialCount={resource.rating_count}
+              initialMine={resource.my_rating ?? null}
+              signedIn={!!user}
+              returnTo={`/resources/${resource.slug}`}
+            />
+          </div>
+
+          <dl className="card mt-4 divide-y divide-line text-sm">
             <Row icon={<Calendar className="h-4 w-4" />} label="Year levels">
               <div className="flex flex-wrap justify-end gap-1">
                 {resource.years.map((y) => (
@@ -125,6 +137,8 @@ async function Detail({ params }: Props) {
             <Row icon={<FileText className="h-4 w-4" />} label="Length">
               {resource.page_count} {resource.page_count === 1 ? "page" : "pages"} · PDF · {sizeKb > 1024 ? `${(sizeKb / 1024).toFixed(1)} MB` : `${sizeKb} KB`}
             </Row>
+            <Row icon={<Eye className="h-4 w-4" />} label="Views">{resource.view_count.toLocaleString("en-NZ")}</Row>
+            <Row icon={<Download className="h-4 w-4" />} label="Downloads">{resource.download_count.toLocaleString("en-NZ")}</Row>
           </dl>
           <p className="mt-2 text-xs text-muted">Suitable for {formatYears(resource.years)}.</p>
 

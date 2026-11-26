@@ -1,5 +1,6 @@
 import { getCurrentUser } from "@/lib/session";
-import { getResourceById } from "@/lib/resources";
+import { after } from "next/server";
+import { getResourceById, incrementDownloads } from "@/lib/resources";
 import { readBlob, SITE_NAME } from "@/lib/blob";
 import { watermarkPdf } from "@/lib/watermark";
 
@@ -20,6 +21,8 @@ export async function GET(request: Request, ctx: RouteContext<"/api/resources/[i
 
   const bytes = await readBlob(resource.blob_pathname);
   if (!bytes) return new Response("File missing", { status: 404 });
+
+  if (download && user) after(() => incrementDownloads(resource.id));
 
   const body = user ? bytes : await watermarkPdf(bytes, SITE_NAME);
   const filename = `${resource.slug}.pdf`;

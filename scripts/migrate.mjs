@@ -49,6 +49,36 @@ CREATE TABLE IF NOT EXISTS favourite (
   PRIMARY KEY (user_id, resource_id)
 );
 CREATE INDEX IF NOT EXISTS favourite_resource_idx ON favourite (resource_id);
+
+-- Downloads + cached rating aggregates
+ALTER TABLE resource ADD COLUMN IF NOT EXISTS download_count integer NOT NULL DEFAULT 0;
+ALTER TABLE resource ADD COLUMN IF NOT EXISTS rating_avg numeric(3,2);
+ALTER TABLE resource ADD COLUMN IF NOT EXISTS rating_count integer NOT NULL DEFAULT 0;
+CREATE INDEX IF NOT EXISTS resource_rating_idx ON resource (rating_avg DESC NULLS LAST);
+
+CREATE TABLE IF NOT EXISTS rating (
+  user_id     text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+  resource_id uuid NOT NULL REFERENCES resource(id) ON DELETE CASCADE,
+  score       numeric(2,1) NOT NULL CHECK (score >= 0.5 AND score <= 5 AND score * 2 = floor(score * 2)),
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  updated_at  timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, resource_id)
+);
+CREATE INDEX IF NOT EXISTS rating_resource_idx ON rating (resource_id);
+
+-- Keep aggregates correct even when users are deleted (cascade)
+CREATE OR REPLACE FUNCTION kt_refresh_rating() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE rid uuid := coalesce(NEW.resource_id, OLD.resource_id);
+BEGIN
+  UPDATE resource SET
+    rating_avg = (SELECT round(avg(score), 2) FROM rating WHERE resource_id = rid),
+    rating_count = (SELECT count(*) FROM rating WHERE resource_id = rid)
+  WHERE id = rid;
+  RETURN NULL;
+END $$;
+DROP TRIGGER IF EXISTS rating_refresh ON rating;
+CREATE TRIGGER rating_refresh AFTER INSERT OR UPDATE OR DELETE ON rating
+  FOR EACH ROW EXECUTE FUNCTION kt_refresh_rating();
 `);
 
 console.log("App tables ready.");

@@ -136,3 +136,27 @@ export async function deleteResource(id: string) {
   await del([existing.blob_pathname, existing.thumb_pathname].filter(Boolean) as string[]).catch(() => {});
   refresh();
 }
+
+/** Rate 0.5–5 in half steps; pass null to remove your rating. */
+export async function rateResource(resourceId: string, score: number | null) {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false as const, error: "signin" };
+  if (!/^[0-9a-f-]{36}$/i.test(resourceId)) return { ok: false as const, error: "Invalid resource" };
+  if (score === null) {
+    await sql(`DELETE FROM rating WHERE user_id = $1 AND resource_id = $2`, [user.id, resourceId]);
+  } else {
+    if (!Number.isFinite(score) || score < 0.5 || score > 5 || score * 2 !== Math.round(score * 2)) {
+      return { ok: false as const, error: "Ratings are 0.5 to 5 stars" };
+    }
+    await sql(
+      `INSERT INTO rating (user_id, resource_id, score) VALUES ($1, $2, $3)
+       ON CONFLICT (user_id, resource_id) DO UPDATE SET score = EXCLUDED.score, updated_at = now()`,
+      [user.id, resourceId, score],
+    );
+  }
+  const [agg] = await sql<{ rating_avg: number | null; rating_count: number }>(
+    `SELECT rating_avg::float AS rating_avg, rating_count FROM resource WHERE id = $1`,
+    [resourceId],
+  );
+  return { ok: true as const, ...agg, mine: score };
+}

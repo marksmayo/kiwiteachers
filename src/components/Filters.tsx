@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
-import { Search, X } from "lucide-react";
+import { Search, X, Star } from "lucide-react";
 import { LEARNING_AREAS, RESOURCE_TYPES, YEARS, yearLabel } from "@/lib/taxonomy";
 import type { SearchParams } from "@/lib/resources";
 
@@ -17,7 +17,7 @@ export function Filters({ params }: { params: SearchParams }) {
     start(() => router.push(`/resources${qs.size ? `?${qs}` : ""}`, { scroll: false }));
   };
 
-  const active = !!(params.q || params.year || params.area || params.type || params.tag);
+  const active = !!(params.q || params.year || params.area || params.type || params.tag || params.rating);
   const pill = (on: boolean) =>
     `rounded-lg px-2.5 py-1.5 text-left text-sm transition ${on ? "bg-fern text-white font-semibold" : "text-ink/80 hover:bg-fern-light hover:text-fern"}`;
 
@@ -77,6 +77,33 @@ export function Filters({ params }: { params: SearchParams }) {
       </div>
 
       <div>
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">Rating</h3>
+        <div className="flex flex-col gap-0.5">
+          {["4.5", "4", "3.5", "3"].map((r) => {
+            const on = params.rating === r;
+            return (
+              <button key={r} onClick={() => go({ rating: on ? undefined : r })} className={`${pill(on)} flex items-center gap-2`} aria-pressed={on}>
+                <span className="flex">
+                  {[1, 2, 3, 4, 5].map((i) => {
+                    const fill = Math.max(0, Math.min(1, Number(r) - (i - 1)));
+                    return (
+                      <span key={i} className="relative h-4 w-4">
+                        <Star className={`absolute h-4 w-4 ${on ? "text-white/30" : "text-line"}`} fill="currentColor" strokeWidth={0} />
+                        <span className="absolute inset-y-0 left-0 overflow-hidden" style={{ width: `${fill * 100}%` }}>
+                          <Star className={`h-4 w-4 ${on ? "text-white" : "text-amber-500"}`} fill="currentColor" strokeWidth={0} />
+                        </span>
+                      </span>
+                    );
+                  })}
+                </span>
+                {r} & up
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div>
         <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">Resource type</h3>
         <div className="flex flex-wrap gap-1.5">
           {RESOURCE_TYPES.map((t) => {
@@ -114,6 +141,7 @@ export function SortSelect({ params }: { params: SearchParams }) {
     >
       {params.q && <option value="relevance">Best match</option>}
       <option value="newest">Newest</option>
+      <option value="rating">Top rated</option>
       <option value="popular">Most loved</option>
       <option value="title">Title A–Z</option>
     </select>

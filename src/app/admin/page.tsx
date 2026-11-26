@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { forbidden, redirect } from "next/navigation";
-import { Pencil, Plus, Eye, Heart } from "lucide-react";
+import { Pencil, Plus, Eye, Heart, Download, Star } from "lucide-react";
 import { getCurrentUser } from "@/lib/session";
 import { getStats, listAllResources } from "@/lib/resources";
 import { areaBySlug, formatYears, typeBySlug } from "@/lib/taxonomy";
@@ -36,10 +36,11 @@ async function AdminList() {
 
   return (
     <>
-      <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
+      <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Stat label="Resources" value={stats.resources} />
         <Stat label="Registered teachers" value={stats.users} />
         <Stat label="Total views" value={rows.reduce((s, r) => s + r.view_count, 0)} />
+        <Stat label="Total downloads" value={rows.reduce((s, r) => s + r.download_count, 0)} />
       </div>
       {rows.length === 0 ? (
         <div className="card px-6 py-14 text-center text-muted">No resources yet. Upload your first one!</div>
@@ -61,7 +62,9 @@ async function AdminList() {
               </div>
               <div className="hidden items-center gap-3 text-xs text-muted md:flex">
                 <span className="flex items-center gap-1"><Eye className="h-3.5 w-3.5" />{r.view_count}</span>
+                <span className="flex items-center gap-1"><Download className="h-3.5 w-3.5" />{r.download_count}</span>
                 <span className="flex items-center gap-1"><Heart className="h-3.5 w-3.5" />{r.favourite_count}</span>
+                <span className="flex items-center gap-1"><Star className="h-3.5 w-3.5" />{r.rating_count ? `${r.rating_avg?.toFixed(1)} (${r.rating_count})` : "–"}</span>
               </div>
               <Link href={`/admin/${r.id}/edit`} className="rounded-full p-2 text-muted hover:bg-fern-light hover:text-fern" aria-label="Edit">
                 <Pencil className="h-4 w-4" />

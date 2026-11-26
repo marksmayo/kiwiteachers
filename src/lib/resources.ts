@@ -15,6 +15,10 @@ export type Resource = {
   resource_type: string;
   tags: string[];
   view_count: number;
+  download_count: number;
+  rating_avg: number | null;
+  rating_count: number;
+  my_rating?: number | null;
   created_at: Date;
   favourite_count?: number;
   is_favourite?: boolean;
@@ -26,6 +30,7 @@ export type SearchParams = {
   area?: string;
   type?: string;
   tag?: string;
+  rating?: string;
   sort?: string;
   page?: string;
 };
@@ -33,7 +38,8 @@ export type SearchParams = {
 export const PAGE_SIZE = 24;
 
 const COLS = `r.id, r.slug, r.title, r.description, r.blob_pathname, r.thumb_pathname, r.file_size,
-  r.page_count, r.years, r.learning_areas, r.resource_type, r.tags, r.view_count, r.created_at`;
+  r.page_count, r.years, r.learning_areas, r.resource_type, r.tags, r.view_count, r.download_count,
+  r.rating_avg::float AS rating_avg, r.rating_count, r.created_at`;
 
 function favCol(userId: string | null, idx: number) {
   return userId
@@ -81,6 +87,8 @@ export async function searchResources(params: SearchParams, userId: string | nul
   if (params.area) where.push(`${add(params.area)} = ANY(r.learning_areas)`);
   if (params.type) where.push(`r.resource_type = ${add(params.type)}`);
   if (params.tag) where.push(`${add(params.tag.toLowerCase())} = ANY(r.tags)`);
+  const minRating = Number(params.rating);
+  if (minRating > 0 && minRating <= 5) where.push(`r.rating_avg >= ${add(minRating)}`);
 
   const sort = params.sort ?? (q ? "relevance" : "newest");
   const order =
@@ -88,8 +96,10 @@ export async function searchResources(params: SearchParams, userId: string | nul
       ? `rank DESC, r.created_at DESC`
       : sort === "title"
         ? `r.title ASC`
+        : sort === "rating"
+          ? `r.rating_avg DESC NULLS LAST, r.rating_count DESC, r.created_at DESC`
         : sort === "popular"
-          ? `favourite_count DESC, r.view_count DESC, r.created_at DESC`
+          ? `favourite_count DESC, r.download_count DESC, r.view_count DESC, r.created_at DESC`
           : `r.created_at DESC`;
 
   const page = Math.max(1, Number(params.page) || 1);
@@ -113,6 +123,7 @@ export async function searchResources(params: SearchParams, userId: string | nul
 export async function getResourceBySlug(slug: string, userId: string | null) {
   const rows = await sql<Resource>(
     `SELECT ${COLS}, ${favCol(userId, 2)},
+       ${userId ? `(SELECT score::float FROM rating rt WHERE rt.resource_id = r.id AND rt.user_id = $2)` : "NULL"} AS my_rating,
        (SELECT count(*)::int FROM favourite f2 WHERE f2.resource_id = r.id) AS favourite_count
      FROM resource r WHERE r.slug = $1`,
     userId ? [slug, userId] : [slug],
@@ -177,4 +188,8 @@ export async function listAllResources() {
 
 export async function incrementViews(id: string) {
   await sql(`UPDATE resource SET view_count = view_count + 1 WHERE id = $1`, [id]);
+}
+
+export async function incrementDownloads(id: string) {
+  await sql(`UPDATE resource SET download_count = download_count + 1 WHERE id = $1`, [id]);
 }
