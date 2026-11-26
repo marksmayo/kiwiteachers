@@ -1,36 +1,40 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# KiwiTeachers
 
-## Getting Started
+Short, printable (1–4 page) teaching resources for Aotearoa New Zealand classrooms, from New Entrants to Year 13.
 
-First, run the development server:
+- **Browse & search**: full-text search over titles, descriptions and keywords, with filters for year level, learning area and resource type.
+- **Watermarked previews**: anyone can preview a resource. Visitors who aren't signed in get a PDF with the watermark stamped in on the server, so the clean file never reaches them.
+- **Free accounts**: signed-in teachers see and download the clean PDF.
+- **Favourites**: signed-in teachers can save resources.
+- **Admin uploads**: admins (set by `ADMIN_EMAILS`) upload PDFs and tag them with years, learning areas, type and keywords.
+
+## Stack
+
+- Next.js 16 (App Router, Cache Components) + Tailwind CSS 4
+- Neon Postgres (Vercel Marketplace), which holds the data and runs search (`tsvector` + `pg_trgm`)
+- Vercel Blob (private store) for the PDFs and thumbnails
+- Better Auth (email + password, with users stored in Postgres)
+- `pdf-lib` for server-side watermarking, `react-pdf` for the in-browser viewer
+
+## Environment variables
+
+| Name | Purpose |
+| --- | --- |
+| `DATABASE_URL` | Neon Postgres (provisioned by the integration) |
+| `BLOB_READ_WRITE_TOKEN` | Vercel Blob store (provisioned) |
+| `BETTER_AUTH_SECRET` | Session signing secret |
+| `ADMIN_EMAILS` | Comma-separated emails that get admin (upload/manage) access |
+| `BETTER_AUTH_URL` | Optional. Overrides the auto-detected site URL |
+
+## Local development
 
 ```bash
+vercel env pull .env.local
+npm install
+npm run db:migrate   # Better Auth tables + app tables (idempotent)
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Becoming an admin
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Sign up on the site with an email listed in `ADMIN_EMAILS`. You'll then see **Manage resources** and **Upload resource** in the account menu.
