@@ -9,6 +9,7 @@ export type CurrentUser = {
   isAdmin: boolean;
 };
 
+/** ADMIN_EMAILS only grants admin to *verified* emails, so nobody can claim admin by registering an address first. */
 export function isAdminEmail(email: string | undefined | null) {
   if (!email) return false;
   const admins = (process.env.ADMIN_EMAILS ?? "")
@@ -18,17 +19,20 @@ export function isAdminEmail(email: string | undefined | null) {
   return admins.includes(email.toLowerCase());
 }
 
-export async function getCurrentUser(
-  reqHeaders?: Headers,
-): Promise<CurrentUser | null> {
+export function resolveIsAdmin(user: { role?: string | null; email: string; emailVerified?: boolean | null }) {
+  return user.role === "admin" || (!!user.emailVerified && isAdminEmail(user.email));
+}
+
+export async function getCurrentUser(reqHeaders?: Headers): Promise<CurrentUser | null> {
   const session = await auth.api.getSession({
     headers: reqHeaders ?? (await headers()),
   });
   if (!session) return null;
+  const u = session.user as typeof session.user & { role?: string };
   return {
-    id: session.user.id,
-    name: session.user.name,
-    email: session.user.email,
-    isAdmin: isAdminEmail(session.user.email),
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    isAdmin: resolveIsAdmin(u),
   };
 }

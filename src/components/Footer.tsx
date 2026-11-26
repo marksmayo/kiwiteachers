@@ -36,11 +36,20 @@ export function Footer() {
             <li><Link href="/resources" className="hover:text-fern">All resources</Link></li>
             <li><Link href="/resources?sort=popular" className="hover:text-fern">Most loved</Link></li>
             <li><Link href="/favourites" className="hover:text-fern">My favourites</Link></li>
+            <li><Link href="/contribute" className="hover:text-fern">Share a resource</Link></li>
             <li><Link href="/sign-up" className="hover:text-fern">Create a free account</Link></li>
+            <li><Link href="/account" className="hover:text-fern">Account settings</Link></li>
           </ul>
         </div>
       </div>
-      <div className="border-t border-line py-5 text-center text-xs text-muted">
+      <div className="border-t border-line px-4 py-5 text-center text-xs text-muted">
+        <nav className="mb-2 flex flex-wrap justify-center gap-x-4 gap-y-1" aria-label="Legal">
+          <Link href="/terms" className="hover:text-fern">Terms of use</Link>
+          <Link href="/privacy" className="hover:text-fern">Privacy policy</Link>
+          <Link href="/copyright" className="hover:text-fern">Copyright &amp; takedown</Link>
+          <Link href="/guidelines" className="hover:text-fern">Community guidelines</Link>
+          <Link href="/account#delete" className="hover:text-fern">Delete my account</Link>
+        </nav>
         Made with aroha in Aotearoa New Zealand
       </div>
     </footer>

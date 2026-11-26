@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/session";
+import { moderationCounts } from "@/lib/reviews";
 import { UserDropdown } from "./UserDropdown";
 
 export async function UserMenu() {
@@ -16,5 +17,6 @@ export async function UserMenu() {
       </div>
     );
   }
-  return <UserDropdown name={user.name} email={user.email} isAdmin={user.isAdmin} />;
+  const counts = user.isAdmin ? await moderationCounts() : { pending: 0, flagged: 0 };
+  return <UserDropdown name={user.name} email={user.email} isAdmin={user.isAdmin} pending={counts.pending} flagged={counts.flagged} />;
 }

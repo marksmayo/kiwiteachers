@@ -1,26 +1,33 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { ChevronLeft, Download, FileText, Lock, Calendar, Layers, Eye } from "lucide-react";
-import { RatingInput } from "@/components/RatingInput";
+import { ChevronLeft, Download, FileText, Lock, Calendar, Layers, Eye, Hourglass, BookMarked, UserRound } from "lucide-react";
 import { getCurrentUser } from "@/lib/session";
 import { getRelated, getResourceBySlug } from "@/lib/resources";
-import { ViewTracker } from "@/components/ViewTracker";
+import { getQuota } from "@/lib/downloads";
 import { areaBySlug, formatYears, typeBySlug, yearLabel } from "@/lib/taxonomy";
 import { PdfPreview } from "@/components/pdf/PdfPreview";
+import { PreviewImages } from "@/components/pdf/PreviewImages";
 import { FavouriteButton } from "@/components/FavouriteButton";
 import { ResourceGrid } from "@/components/ResourceCard";
+import { RatingInput } from "@/components/RatingInput";
+import { ViewTracker } from "@/components/ViewTracker";
+import { Reviews, displayName } from "@/components/reviews/Reviews";
+import { DecisionButtons } from "@/components/admin/DecisionButtons";
 
-type Props = { params: Promise<{ slug: string }> };
+type Props = {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 
-export default function ResourcePage({ params }: Props) {
+export default function ResourcePage(props: Props) {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
       <Link href="/resources" className="inline-flex items-center gap-1 text-sm font-medium text-muted hover:text-fern">
         <ChevronLeft className="h-4 w-4" /> All resources
       </Link>
       <Suspense fallback={<DetailSkeleton />}>
-        <Detail params={params} />
+        <Detail {...props} />
       </Suspense>
     </div>
   );
@@ -39,87 +46,132 @@ function DetailSkeleton() {
   );
 }
 
-async function Detail({ params }: Props) {
-  const { slug } = await params;
+async function Detail({ params, searchParams }: Props) {
+  const [{ slug }, sp] = await Promise.all([params, searchParams]);
   const user = await getCurrentUser();
-  const resource = await getResourceBySlug(slug, user?.id ?? null);
+  const resource = await getResourceBySlug(slug, user);
   if (!resource) notFound();
 
-  const related = await getRelated(resource, user?.id ?? null);
+  const published = resource.status === "published";
+  const isOwner = !!user && resource.uploaded_by === user.id;
+  const privileged = !!user && (user.isAdmin || isOwner);
+  const [related, quota] = await Promise.all([
+    published ? getRelated(resource, user?.id ?? null) : Promise.resolve([]),
+    user ? getQuota(user) : Promise.resolve(null),
+  ]);
+
   const fileUrl = `/api/resources/${resource.id}/file`;
   const type = typeBySlug(resource.resource_type);
   const sizeKb = Math.max(1, Math.round(resource.file_size / 1024));
+  const downloadedToday = !!quota?.resourceIds.includes(resource.id);
+  const outOfDownloads = !!quota && !quota.unlimited && quota.remaining <= 0 && !downloadedToday && !privileged;
+  const limitHit = (sp.limit === "reached" && !downloadedToday) || outOfDownloads;
 
   return (
     <>
-      <ViewTracker id={resource.id} />
+      {published && <ViewTracker id={resource.id} />}
       <title>{`${resource.title} · KiwiTeachers`}</title>
       <meta name="description" content={resource.description.slice(0, 160)} />
+
+      {!published && (
+        <div className="mt-6 flex flex-col gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 sm:flex-row sm:items-center">
+          <Hourglass className="h-5 w-5 shrink-0 text-amber-700" />
+          <div className="flex-1 text-sm text-amber-900">
+            {resource.status === "pending" ? (
+              <><strong>Awaiting review.</strong> Only the contributor and site admins can see this.</>
+            ) : (
+              <><strong>Not approved:</strong> {resource.rejection_reason}</>
+            )}
+          </div>
+          {user?.isAdmin && resource.status === "pending" && <DecisionButtons id={resource.id} />}
+          {isOwner && !user?.isAdmin && (
+            <Link href={`/contribute/${resource.id}/edit`} className="btn-ghost py-1.5">Edit submission</Link>
+          )}
+        </div>
+      )}
+
       <div className="mt-6 grid gap-10 lg:grid-cols-[1fr_380px]">
-        {/* Preview */}
         <div className="order-2 lg:order-1">
-          {!user && (
+          {!privileged && (
             <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-kiwi/20 bg-[#f3ead9] p-4 sm:flex-row sm:items-center">
               <Lock className="h-5 w-5 shrink-0 text-kiwi" />
               <p className="flex-1 text-sm text-ink/80">
-                You’re viewing a <strong>watermarked preview</strong>. Sign in free to view and download the clean copy.
+                You’re viewing a <strong>watermarked preview</strong>.{" "}
+                {user ? "Download to get the clean copy." : "Sign in free to download the clean copy."}
               </p>
-              <Link href={`/sign-in?next=/resources/${resource.slug}`} className="btn-primary shrink-0 py-2">
-                Sign in free
-              </Link>
+              {!user && (
+                <Link href={`/sign-in?next=/resources/${resource.slug}`} className="btn-primary shrink-0 py-2">Sign in free</Link>
+              )}
             </div>
           )}
           <div className="rounded-2xl bg-[#ebe6d8] p-3 sm:p-6">
-            <PdfPreview url={`${fileUrl}?v=${user ? "full" : "preview"}`} />
+            {!privileged && resource.preview_pathnames.length > 0 ? (
+              <PreviewImages resourceId={resource.id} pages={resource.preview_pathnames.length} title={resource.title} />
+            ) : (
+              <PdfPreview url={`${fileUrl}?v=${privileged ? "full" : user ? "member" : "preview"}`} />
+            )}
           </div>
         </div>
 
-        {/* Details */}
         <aside className="order-1 lg:order-2 lg:sticky lg:top-24 lg:self-start">
           <div className="flex flex-wrap gap-2">
-            {resource.learning_areas.map((slug) => {
-              const a = areaBySlug(slug);
+            {resource.learning_areas.map((a) => {
+              const area = areaBySlug(a);
               return (
-                <Link key={slug} href={`/resources?area=${slug}`} className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold text-white" style={{ background: a?.color }}>
-                  {a?.name}
+                <Link key={a} href={`/resources?area=${a}`} className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold text-white" style={{ background: area?.color }}>
+                  {area?.name}
                 </Link>
               );
             })}
           </div>
           <h1 className="mt-4 text-3xl font-bold leading-tight sm:text-4xl">{resource.title}</h1>
-          {resource.description && (
-            <p className="mt-4 whitespace-pre-line leading-relaxed text-ink/80">{resource.description}</p>
+          {resource.uploader_name && (
+            <p className="mt-2 flex items-center gap-1.5 text-sm text-muted">
+              <UserRound className="h-4 w-4" /> Shared by {displayName(resource.uploader_name)}
+            </p>
           )}
+          {resource.description && <p className="mt-4 whitespace-pre-line leading-relaxed text-ink/80">{resource.description}</p>}
 
           <div className="mt-6 flex flex-wrap gap-2">
-            {user ? (
-              <a href={`${fileUrl}?download=1`} className="btn-primary">
-                <Download className="h-4 w-4" /> Download PDF
-              </a>
-            ) : (
+            {!user ? (
               <Link href={`/sign-in?next=/resources/${resource.slug}`} className="btn-primary">
                 <Download className="h-4 w-4" /> Sign in to download
               </Link>
+            ) : limitHit ? (
+              <span className="btn cursor-not-allowed bg-line text-muted" aria-disabled="true">
+                <Download className="h-4 w-4" /> Daily limit reached
+              </span>
+            ) : (
+              <a href={`${fileUrl}?download=1`} className="btn-primary">
+                <Download className="h-4 w-4" /> Download PDF
+              </a>
             )}
-            <FavouriteButton
-              resourceId={resource.id}
-              initial={!!resource.is_favourite}
-              signedIn={!!user}
-              variant="full"
-              returnTo={`/resources/${resource.slug}`}
-            />
+            {published && (
+              <FavouriteButton resourceId={resource.id} initial={!!resource.is_favourite} signedIn={!!user} variant="full" returnTo={`/resources/${resource.slug}`} />
+            )}
           </div>
+          {quota && !quota.unlimited && (
+            <p className={`mt-2 text-xs ${limitHit ? "text-pohutukawa" : "text-muted"}`} role="status">
+              {limitHit
+                ? `You’ve used all ${quota.limit} downloads for today. Your allowance resets at midnight (NZ time).`
+                : downloadedToday
+                  ? `You’ve downloaded this today, so downloading it again is free. ${quota.remaining} of ${quota.limit} left today.`
+                  : `${quota.remaining} of ${quota.limit} free downloads left today.`}
+            </p>
+          )}
 
-          <div className="mt-6">
-            <RatingInput
-              resourceId={resource.id}
-              initialAvg={resource.rating_avg}
-              initialCount={resource.rating_count}
-              initialMine={resource.my_rating ?? null}
-              signedIn={!!user}
-              returnTo={`/resources/${resource.slug}`}
-            />
-          </div>
+          {published && (
+            <div className="mt-6">
+              <RatingInput
+                resourceId={resource.id}
+                initialAvg={resource.rating_avg}
+                initialCount={resource.rating_count}
+                initialMine={resource.my_rating ?? null}
+                signedIn={!!user}
+                returnTo={`/resources/${resource.slug}`}
+              />
+            </div>
+          )}
 
           <dl className="card mt-4 divide-y divide-line text-sm">
             <Row icon={<Calendar className="h-4 w-4" />} label="Year levels">
@@ -142,6 +194,19 @@ async function Detail({ params }: Props) {
           </dl>
           <p className="mt-2 text-xs text-muted">Suitable for {formatYears(resource.years)}.</p>
 
+          {resource.curriculum_codes.length > 0 && (
+            <div className="mt-6">
+              <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted">
+                <BookMarked className="h-3.5 w-3.5" /> Te Mātaiaho codes
+              </h2>
+              <div className="flex flex-wrap gap-1.5">
+                {resource.curriculum_codes.map((c) => (
+                  <Link key={c} href={`/resources?code=${encodeURIComponent(c)}`} className="chip font-mono">{c}</Link>
+                ))}
+              </div>
+            </div>
+          )}
+
           {resource.tags.length > 0 && (
             <div className="mt-6">
               <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">Keywords</h2>
@@ -154,6 +219,10 @@ async function Detail({ params }: Props) {
           )}
         </aside>
       </div>
+
+      {published && (
+        <Reviews resourceId={resource.id} slug={resource.slug} viewerId={user?.id ?? null} myScore={resource.my_rating ?? null} />
+      )}
 
       {related.length > 0 && (
         <section className="mt-20">

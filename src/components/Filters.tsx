@@ -17,7 +17,7 @@ export function Filters({ params }: { params: SearchParams }) {
     start(() => router.push(`/resources${qs.size ? `?${qs}` : ""}`, { scroll: false }));
   };
 
-  const active = !!(params.q || params.year || params.area || params.type || params.tag || params.rating);
+  const active = !!(params.q || params.year || params.area || params.type || params.tag || params.rating || params.code);
   const pill = (on: boolean) =>
     `rounded-lg px-2.5 py-1.5 text-left text-sm transition ${on ? "bg-fern text-white font-semibold" : "text-ink/80 hover:bg-fern-light hover:text-fern"}`;
 
@@ -102,6 +102,19 @@ export function Filters({ params }: { params: SearchParams }) {
           })}
         </div>
       </div>
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          const code = new FormData(e.currentTarget).get("code")?.toString().trim().toUpperCase();
+          go({ code: code || undefined });
+        }}
+      >
+        <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted" htmlFor="code-filter">
+          Te Mātaiaho code
+        </label>
+        <input id="code-filter" key={params.code ?? ""} name="code" defaultValue={params.code} placeholder="Enter a code…" className="input font-mono uppercase" />
+      </form>
 
       <div>
         <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">Resource type</h3>

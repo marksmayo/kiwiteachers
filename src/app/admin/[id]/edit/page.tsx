@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { forbidden, notFound, redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/session";
+import { notFound } from "next/navigation";
 import { getResourceById } from "@/lib/resources";
 import { ResourceForm } from "@/components/admin/ResourceForm";
+import { requireAdmin } from "@/components/admin/AdminNav";
 
 export const metadata: Metadata = { title: "Edit resource" };
 
@@ -24,13 +24,12 @@ export default function EditResourcePage({ params }: Props) {
 
 async function Gate({ params }: Props) {
   const { id } = await params;
-  const user = await getCurrentUser();
-  if (!user) redirect(`/sign-in?next=/admin/${id}/edit`);
-  if (!user.isAdmin) forbidden();
+  const user = await requireAdmin(`/admin/${id}/edit`);
   const r = await getResourceById(id);
   if (!r) notFound();
   return (
     <ResourceForm
+      userId={user.id}
       initial={{
         id: r.id,
         title: r.title,
@@ -39,6 +38,8 @@ async function Gate({ params }: Props) {
         learningAreas: r.learning_areas,
         resourceType: r.resource_type,
         tags: r.tags,
+        curriculumCodes: r.curriculum_codes,
+        hasPreviews: r.preview_pathnames.length > 0,
       }}
     />
   );

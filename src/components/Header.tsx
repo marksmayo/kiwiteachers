@@ -22,6 +22,9 @@ export function Header() {
           <Link href="/favourites" className="rounded-full px-3 py-1.5 text-ink/80 hover:bg-fern-light hover:text-fern">
             Favourites
           </Link>
+          <Link href="/contribute" className="rounded-full px-3 py-1.5 text-ink/80 hover:bg-fern-light hover:text-fern">
+            Contribute
+          </Link>
         </nav>
 
         <form action="/resources" className="relative ml-auto hidden w-full max-w-xs sm:block">

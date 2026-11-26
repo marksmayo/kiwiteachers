@@ -5,7 +5,11 @@ import { PDFDocument, StandardFonts, degrees, rgb } from "pdf-lib";
  * Stamps a tiled diagonal watermark and a footer banner onto every page.
  * Runs on the server, so anonymous visitors never receive the clean file.
  */
-export async function watermarkPdf(bytes: Uint8Array, siteName: string) {
+export async function watermarkPdf(
+  bytes: Uint8Array,
+  siteName: string,
+  banner = `Preview only — sign in free at ${siteName} to download the clean copy`,
+) {
   const pdf = await PDFDocument.load(bytes, { ignoreEncryption: true });
   const font = await pdf.embedFont(StandardFonts.HelveticaBold);
   const text = `${siteName} · PREVIEW`;
@@ -30,7 +34,6 @@ export async function watermarkPdf(bytes: Uint8Array, siteName: string) {
       }
     }
     // Footer banner
-    const banner = `Preview only — sign in free at ${siteName} to download the clean copy`;
     const bSize = 9;
     const bWidth = font.widthOfTextAtSize(banner, bSize);
     page.drawRectangle({

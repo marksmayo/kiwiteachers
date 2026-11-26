@@ -4,12 +4,12 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
+import { safeNext } from "@/lib/safe-next";
 
 export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
   const router = useRouter();
   const search = useSearchParams();
-  const rawNext = search.get("next") ?? "/";
-  const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/";
+  const next = safeNext(search.get("next"), typeof window === "undefined" ? undefined : window.location.origin);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [existingEmail, setExistingEmail] = useState<string | null>(null);
@@ -103,6 +103,12 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
               </Link>
             </>
           )}
+        </p>
+      )}
+      {mode === "sign-up" && (
+        <p className="text-xs text-muted">
+          By creating an account you agree to our <Link href="/terms" className="underline hover:text-fern">terms of use</Link> and{" "}
+          <Link href="/privacy" className="underline hover:text-fern">privacy policy</Link>.
         </p>
       )}
       <button disabled={loading} className="btn-primary w-full py-3">

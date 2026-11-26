@@ -17,7 +17,7 @@ function normalise(sp: Record<string, string | string[] | undefined>): SearchPar
     const v = sp[k];
     return (Array.isArray(v) ? v[0] : v) || undefined;
   };
-  return { q: one("q"), year: one("year"), area: one("area"), type: one("type"), tag: one("tag"), rating: one("rating"), sort: one("sort"), page: one("page") };
+  return { q: one("q"), year: one("year"), area: one("area"), type: one("type"), tag: one("tag"), code: one("code"), rating: one("rating"), sort: one("sort"), page: one("page") };
 }
 
 export default function ResourcesPage({ searchParams }: Props) {
@@ -54,6 +54,7 @@ async function Results({ searchParams }: Props) {
   if (params.area) activeChips.push({ label: areaBySlug(params.area)?.name ?? params.area, remove: { area: undefined } });
   if (params.type) activeChips.push({ label: typeBySlug(params.type)?.name ?? params.type, remove: { type: undefined } });
   if (params.rating) activeChips.push({ label: `${params.rating}★ & up`, remove: { rating: undefined } });
+  if (params.code) activeChips.push({ label: `Code ${params.code.toUpperCase()}`, remove: { code: undefined } });
   if (params.tag) activeChips.push({ label: `#${params.tag}`, remove: { tag: undefined } });
 
   const href = (patch: Partial<SearchParams>) => {

@@ -1,23 +1,23 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { forbidden, redirect } from "next/navigation";
 import { Pencil, Plus, Eye, Heart, Download, Star } from "lucide-react";
-import { getCurrentUser } from "@/lib/session";
 import { getStats, listAllResources } from "@/lib/resources";
 import { areaBySlug, formatYears, typeBySlug } from "@/lib/taxonomy";
 import { DeleteButton } from "@/components/admin/DeleteButton";
 import { ResourceThumb } from "@/components/ResourceCard";
+import { AdminNav, requireAdmin } from "@/components/admin/AdminNav";
+import { displayName } from "@/components/reviews/Reviews";
 
 export const metadata: Metadata = { title: "Manage resources" };
 
 export default function AdminPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold">Manage resources</h1>
-          <p className="text-muted">Upload, edit and remove resources.</p>
+          <p className="text-muted">Upload, edit, approve and moderate.</p>
         </div>
         <Link href="/admin/new" className="btn-primary"><Plus className="h-4 w-4" /> Upload resource</Link>
       </div>
@@ -29,15 +29,14 @@ export default function AdminPage() {
 }
 
 async function AdminList() {
-  const user = await getCurrentUser();
-  if (!user) redirect("/sign-in?next=/admin");
-  if (!user.isAdmin) forbidden();
+  await requireAdmin("/admin");
   const [rows, stats] = await Promise.all([listAllResources(), getStats()]);
 
   return (
     <>
+      <AdminNav active="resources" />
       <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Stat label="Resources" value={stats.resources} />
+        <Stat label="Published resources" value={stats.resources} />
         <Stat label="Registered teachers" value={stats.users} />
         <Stat label="Total views" value={rows.reduce((s, r) => s + r.view_count, 0)} />
         <Stat label="Total downloads" value={rows.reduce((s, r) => s + r.download_count, 0)} />
@@ -58,15 +57,16 @@ async function AdminList() {
                   <span>{r.learning_areas.map((a) => areaBySlug(a)?.name).join(", ")}</span>
                   <span>{typeBySlug(r.resource_type)?.name}</span>
                   <span>{r.page_count}p</span>
+                  {r.uploader_name && <span>by {displayName(r.uploader_name)}</span>}
                 </div>
               </div>
               <div className="hidden items-center gap-3 text-xs text-muted md:flex">
-                <span className="flex items-center gap-1"><Eye className="h-3.5 w-3.5" />{r.view_count}</span>
-                <span className="flex items-center gap-1"><Download className="h-3.5 w-3.5" />{r.download_count}</span>
-                <span className="flex items-center gap-1"><Heart className="h-3.5 w-3.5" />{r.favourite_count}</span>
-                <span className="flex items-center gap-1"><Star className="h-3.5 w-3.5" />{r.rating_count ? `${r.rating_avg?.toFixed(1)} (${r.rating_count})` : "–"}</span>
+                <span className="flex items-center gap-1" title="Views"><Eye className="h-3.5 w-3.5" />{r.view_count}</span>
+                <span className="flex items-center gap-1" title="Downloads"><Download className="h-3.5 w-3.5" />{r.download_count}</span>
+                <span className="flex items-center gap-1" title="Favourites"><Heart className="h-3.5 w-3.5" />{r.favourite_count}</span>
+                <span className="flex items-center gap-1" title="Rating"><Star className="h-3.5 w-3.5" />{r.rating_count ? `${r.rating_avg?.toFixed(1)} (${r.rating_count})` : "–"}</span>
               </div>
-              <Link href={`/admin/${r.id}/edit`} className="rounded-full p-2 text-muted hover:bg-fern-light hover:text-fern" aria-label="Edit">
+              <Link href={`/admin/${r.id}/edit`} className="rounded-full p-2 text-muted hover:bg-fern-light hover:text-fern" aria-label={`Edit ${r.title}`}>
                 <Pencil className="h-4 w-4" />
               </Link>
               <DeleteButton id={r.id} />

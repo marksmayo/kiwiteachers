@@ -1,17 +1,26 @@
-import { getResourceById } from "@/lib/resources";
+import { canView, getResourceById } from "@/lib/resources";
 import { readBlob } from "@/lib/blob";
+import { inspectImage } from "@/lib/pdf-security";
+import { getCurrentUser } from "@/lib/session";
 
-export async function GET(_request: Request, ctx: RouteContext<"/api/resources/[id]/thumb">) {
+export async function GET(request: Request, ctx: RouteContext<"/api/resources/[id]/thumb">) {
   const { id } = await ctx.params;
   const resource = await getResourceById(id);
   if (!resource?.thumb_pathname) return new Response("Not found", { status: 404 });
+  const isPublic = resource.status === "published";
+  if (!isPublic && !canView(resource, await getCurrentUser(request.headers))) {
+    return new Response("Not found", { status: 404 });
+  }
   const bytes = await readBlob(resource.thumb_pathname);
-  if (!bytes) return new Response("Not found", { status: 404 });
-  const type = resource.thumb_pathname.endsWith(".png") ? "image/png" : "image/webp";
+  const check = bytes ? inspectImage(bytes) : null;
+  if (!bytes || !check?.ok) return new Response("Not found", { status: 404 });
   return new Response(bytes as BodyInit, {
     headers: {
-      "Content-Type": type,
-      "Cache-Control": "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400",
+      "Content-Type": check.type,
+      "X-Content-Type-Options": "nosniff",
+      "Cache-Control": isPublic
+        ? "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400"
+        : "private, no-store",
     },
   });
 }
