@@ -12,10 +12,12 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
   const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/";
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [existingEmail, setExistingEmail] = useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    setExistingEmail(null);
     setLoading(true);
     const fd = new FormData(e.currentTarget);
     const email = String(fd.get("email")).trim();
@@ -26,6 +28,11 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
         : await authClient.signIn.email({ email, password });
     setLoading(false);
     if (res.error) {
+      if (mode === "sign-up" && res.error.code?.startsWith("USER_ALREADY_EXISTS")) {
+        setExistingEmail(email);
+        setError("You already have an account with that email.");
+        return;
+      }
       setError(res.error.message ?? "Something went wrong — please try again.");
       return;
     }
@@ -46,7 +53,24 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
       )}
       <label className="block">
         <span className="mb-1.5 block text-sm font-medium">Email</span>
-        <input name="email" type="email" required autoComplete="email" className="input" placeholder="you@school.nz" />
+        <input
+          name="email"
+          type="email"
+          required
+          autoComplete="email"
+          className="input"
+          placeholder="you@school.nz"
+          ref={(el) => {
+            if (!el || el.value) return;
+            try {
+              const saved = sessionStorage.getItem("kt-email");
+              if (saved) {
+                el.value = saved;
+                sessionStorage.removeItem("kt-email");
+              }
+            } catch {}
+          }}
+        />
       </label>
       <label className="block">
         <span className="mb-1.5 block text-sm font-medium">Password</span>
@@ -60,7 +84,27 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
           placeholder={mode === "sign-up" ? "At least 8 characters" : ""}
         />
       </label>
-      {error && <p className="rounded-xl bg-pohutukawa/10 px-4 py-2.5 text-sm text-pohutukawa" role="alert">{error}</p>}
+      {error && (
+        <p className="rounded-xl bg-pohutukawa/10 px-4 py-2.5 text-sm text-pohutukawa" role="alert">
+          {error}
+          {existingEmail && (
+            <>
+              {" "}
+              <Link
+                href={next !== "/" ? `/sign-in?next=${encodeURIComponent(next)}` : "/sign-in"}
+                onClick={() => {
+                  try {
+                    sessionStorage.setItem("kt-email", existingEmail);
+                  } catch {}
+                }}
+                className="font-semibold underline"
+              >
+                Sign in instead →
+              </Link>
+            </>
+          )}
+        </p>
+      )}
       <button disabled={loading} className="btn-primary w-full py-3">
         {loading ? "One moment…" : mode === "sign-up" ? "Create free account" : "Sign in"}
       </button>
