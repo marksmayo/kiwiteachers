@@ -44,7 +44,7 @@ export const dbModule = {
 
 export async function resetDb() {
   const d = await getDb();
-  await d.exec(`TRUNCATE upload_token, download, favourite, rating, resource, "user" RESTART IDENTITY CASCADE;`);
+  await d.exec(`TRUNCATE resource_view, upload_token, download, favourite, rating, resource, "user" RESTART IDENTITY CASCADE;`);
 }
 
 let n = 0;

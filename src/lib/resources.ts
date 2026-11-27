@@ -228,7 +228,3 @@ export async function listPending() {
 export async function listByUploader(userId: string) {
   return sql<Resource>(`SELECT ${COLS} FROM resource r WHERE r.uploaded_by = $1 ORDER BY r.created_at DESC`, [userId]);
 }
-
-export async function incrementViews(id: string) {
-  await sql(`UPDATE resource SET view_count = view_count + 1 WHERE id = $1 AND status = 'published'`, [id]);
-}

@@ -120,3 +120,16 @@ CREATE TABLE IF NOT EXISTS upload_token (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS upload_token_user_time_idx ON upload_token (user_id, created_at DESC);
+
+-- ── De-duplicated view counting ──
+-- One row per (resource, viewer, NZ day). `viewer` is the user id or a daily-salted hash of IP + browser;
+-- `source` is a daily-salted hash of the IP alone. Raw IPs are never stored, and rows are pruned after a few days.
+CREATE TABLE IF NOT EXISTS resource_view (
+  resource_id uuid NOT NULL REFERENCES resource(id) ON DELETE CASCADE,
+  viewer      text NOT NULL,
+  source      text NOT NULL,
+  day         date NOT NULL,
+  PRIMARY KEY (resource_id, viewer, day)
+);
+CREATE INDEX IF NOT EXISTS resource_view_viewer_idx ON resource_view (day, viewer);
+CREATE INDEX IF NOT EXISTS resource_view_source_idx ON resource_view (day, source, resource_id);

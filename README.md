@@ -25,6 +25,7 @@ Short, printable (1–4 page) teaching resources for Aotearoa New Zealand classr
 | `BETTER_AUTH_SECRET` | Session signing secret |
 | `ADMIN_EMAILS` | Comma-separated emails that get admin (upload/manage) access |
 | `BETTER_AUTH_URL` | Optional. Overrides the auto-detected site URL |
+| `CRON_SECRET` | Random string (16+ chars) that authorises the nightly cleanup job |
 
 ## Local development
 
@@ -38,3 +39,10 @@ npm run dev
 ## Becoming an admin
 
 Sign up on the site with an email listed in `ADMIN_EMAILS`. You'll then see **Manage resources** and **Upload resource** in the account menu.
+
+## Housekeeping and security
+
+- **Nightly cleanup** (`vercel.json` → `nightly-cleanup`, 3:30am NZ): deletes uploaded files no resource uses after a 24-hour grace period (abandoned upload forms, leftovers from failed saves), at most 1,000 per run, and prunes old view and rate-limit rows. Preview what it would delete:
+  `curl -X POST -H "Authorization: Bearer $CRON_SECRET" "https://kiwiteachers.vercel.app/api/cron/cleanup?dryRun=1"`
+- **View counts** count each visitor once per resource per NZ day, from same-origin browser requests only, with per-IP caps. Bots, admins and the uploader don't count. Raw IP addresses are never stored (see `src/lib/views.ts`).
+- **Content Security Policy** is set per request in `src/proxy.ts` with a fresh nonce: only Next.js' own nonce-stamped scripts run (no `'unsafe-inline'` scripts). This means every page renders per request, so Partial Prerendering is off.

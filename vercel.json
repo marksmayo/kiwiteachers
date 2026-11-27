@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "schedules": {
+    "nightly-cleanup": {
+      "schedule": "30 3 * * *",
+      "timezone": "Pacific/Auckland",
+      "path": "/api/cron/cleanup",
+      "requestMethod": "POST"
+    }
+  }
+}

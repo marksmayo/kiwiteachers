@@ -6,7 +6,7 @@ vi.mock("./db", async () => (await import("../../test/pglite")).dbModule);
 const lib = await import("./resources");
 const {
   searchResources, getResourceBySlug, getResourceById, getRelated, getFavourites, getPopularTags, getAreaCounts,
-  getStats, listAllResources, listPending, listByUploader, incrementViews, canView, toPrefixQuery,
+  getStats, listAllResources, listPending, listByUploader, canView, toPrefixQuery,
 } = lib;
 
 describe("toPrefixQuery", () => {
@@ -143,14 +143,5 @@ describe("listings", () => {
     await createResource({ uploaded_by: u.id, status: "rejected" });
     await createResource();
     expect(await listByUploader(u.id)).toHaveLength(2);
-  });
-
-  it("incrementViews only counts published resources", async () => {
-    const live = await createResource();
-    const pending = await createResource({ status: "pending" });
-    await incrementViews(live.id);
-    await incrementViews(pending.id);
-    const rows = await dbModule.sql(`SELECT id, view_count FROM resource`);
-    expect(Object.fromEntries(rows.map((r) => [r.id, r.view_count]))).toEqual({ [live.id]: 1, [pending.id]: 0 });
   });
 });

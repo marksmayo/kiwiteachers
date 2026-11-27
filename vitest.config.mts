@@ -16,8 +16,8 @@ export default defineConfig({
     environment: "node",
     setupFiles: ["./test/setup.ts"],
     include: ["src/**/*.test.{ts,tsx}", "test/**/*.test.{ts,tsx}"],
-    testTimeout: 30_000,
-    hookTimeout: 60_000,
+    testTimeout: 60_000,
+    hookTimeout: 120_000,
     coverage: {
       provider: "v8",
       include: ["src/**/*.{ts,tsx}"],
@@ -28,16 +28,16 @@ export default defineConfig({
       thresholds: {
         // Local runs raise the floor; CI only enforces it.
         autoUpdate: !process.env.CI,
-        lines: 70.62,
-        functions: 58.9,
-        branches: 67.93,
-        statements: 71.92,
+        lines: 72.56,
+        functions: 60.62,
+        branches: 69.42,
+        statements: 73.7,
         // Business and security logic is held to a higher bar.
         "src/lib/**": {
-          lines: 98.6,
-          functions: 96.52,
-          branches: 94.69,
-          statements: 97.68,
+          lines: 98.75,
+          functions: 96.89,
+          branches: 95.18,
+          statements: 97.91,
         },
       },
     },

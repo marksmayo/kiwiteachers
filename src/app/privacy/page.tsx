@@ -16,7 +16,7 @@ export default function PrivacyPage() {
         <li><strong>Account details:</strong> your name, email address and password (stored only as a secure hash, so we can’t read it).</li>
         <li><strong>Sign-in sessions:</strong> a session cookie, plus the IP address and browser type used to sign in, to keep your account secure.</li>
         <li><strong>Your activity:</strong> favourites, ratings, reviews, the resources you download (to apply the daily download allowance), and resources you submit.</li>
-        <li><strong>Anonymous usage:</strong> view and download counts per resource. These aren’t linked to you on the public site.</li>
+        <li><strong>Anonymous usage:</strong> view and download counts per resource. These aren’t linked to you on the public site. To count each visitor once a day, we keep a one-way scrambled code made from your IP address and browser that changes every day, never the IP address itself, and delete it after a few days.</li>
       </ul>
       <p>We don’t use advertising or third-party tracking cookies.</p>
 

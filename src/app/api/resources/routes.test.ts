@@ -190,10 +190,51 @@ describe("image previews", () => {
 });
 
 describe("POST /api/resources/[id]/view", () => {
-  beforeEach(resetDb);
-  it("counts a view for valid ids and rejects junk", async () => {
+  beforeEach(async () => {
+    await resetDb();
+    currentUser = null;
+  });
+  const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/140.0 Safari/537.36";
+  const beacon = (id: string, h: Record<string, string> = {}) =>
+    view.POST(
+      new Request(`http://localhost/api/resources/${id}/view`, {
+        method: "POST",
+        headers: { "sec-fetch-site": "same-origin", "user-agent": UA, "x-real-ip": "203.0.113.9", ...h },
+      }),
+      ctx(id),
+    );
+  const count = async (id: string) => (await dbModule.sql(`SELECT view_count FROM resource WHERE id = $1`, [id]))[0].view_count;
+
+  it("rejects junk ids", async () => {
+    expect((await beacon("junk")).status).toBe(400);
+  });
+
+  it("counts a browser view once per visitor per day", async () => {
     const r = await createResource();
-    expect((await view.POST(req(""), ctx(r.id))).status).toBe(204);
-    expect((await view.POST(req(""), ctx("junk"))).status).toBe(400);
+    expect((await beacon(r.id)).status).toBe(204);
+    await beacon(r.id);
+    await beacon(r.id);
+    expect(await count(r.id)).toBe(1);
+    await beacon(r.id, { "x-real-ip": "198.51.100.4" });
+    expect(await count(r.id)).toBe(2);
+  });
+
+  it("ignores cross-site requests, bots and scripts, but still answers 204", async () => {
+    const r = await createResource();
+    expect((await beacon(r.id, { "sec-fetch-site": "cross-site" })).status).toBe(204);
+    await beacon(r.id, { "user-agent": "curl/8.4.0" });
+    await beacon(r.id, { "user-agent": "Googlebot/2.1 (+http://www.google.com/bot.html)" });
+    expect(await count(r.id)).toBe(0);
+  });
+
+  it("counts signed-in members by account and skips the uploader", async () => {
+    const owner = await as();
+    const r = await createResource({ uploaded_by: owner.id });
+    await beacon(r.id);
+    expect(await count(r.id)).toBe(0);
+    await as();
+    await beacon(r.id);
+    await beacon(r.id, { "user-agent": UA + " Edg/140" });
+    expect(await count(r.id)).toBe(1);
   });
 });

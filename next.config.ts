@@ -2,8 +2,7 @@ import type { NextConfig } from "next";
 import { securityHeaders } from "./src/lib/security-headers";
 
 const nextConfig: NextConfig = {
-  cacheComponents: true,
-  partialPrefetching: true,
+  // Partial Prerendering is off: the nonce-based CSP in src/proxy.ts needs every page rendered per request.
   poweredByHeader: false,
   experimental: {
     authInterrupts: true,
